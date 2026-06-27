@@ -38,7 +38,41 @@ function tampilkanDashboard() {
     document.getElementById('loginPage').classList.add('hidden');
     document.getElementById('dashboardPage').classList.remove('hidden');
     perbaruiTampilanDanStatistik();
+    muatDataDariCloud();
 }
+
+// Load data from Google Sheets Cloud
+function muatDataDariCloud() {
+    if (!CONFIG.WEB_APP_URL) return;
+    
+    fetch(CONFIG.WEB_APP_URL)
+        .then(response => {
+            if (!response.ok) throw new Error("Gagal mengambil data dari server");
+            return response.json();
+        })
+        .then(data => {
+            if (Array.isArray(data)) {
+                databaseAset = data.map(item => ({
+                    ID_Aset: item.ID_Aset || item.idAset || "",
+                    Jenis_Barang: item.Jenis_Barang || item.jenisBarang || "",
+                    Merk: item.Merk || item.merkBarang || "",
+                    Type_Barang: item.Type_Barang || item.typeBarang || "",
+                    Triwulan: item.Triwulan || item.pembelianTriwulan || "",
+                    Tahun: item.Tahun || item.pembelianTahun || "",
+                    Lantai: item.Lantai || item.lokasiLantai || "",
+                    Ruang: item.Ruang || item.lokasiRuang || "",
+                    Kondisi: item.Kondisi || item.kondisi || ""
+                }));
+                localStorage.setItem('SMPN263_EXCEL_ASSETS', JSON.stringify(databaseAset));
+                perbaruiTampilanDanStatistik();
+                console.log("Database successfully synced from cloud.");
+            }
+        })
+        .catch(err => {
+            console.error("Gagal sinkronisasi data dari cloud:", err);
+        });
+}
+
 
 // Dynamic barcode rendering in asset form
 function pemicuBarcodeFormDinamis(val) {
