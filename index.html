@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMAS - SMP Negeri 263 Jakarta</title>
+    <meta name="description" content="Sistem Informasi Manajemen Aset Sekolah (SIMAS) SMP Negeri 263 Jakarta. Solusi digital pencatatan, pelacakan, dan pelaporan aset sekolah secara real-time.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- External Library CDNs -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <!-- LOGIN PAGE -->
+    <div id="loginPage">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo">263</div>
+                <h1 class="login-title">SIMAS 263</h1>
+                <p class="login-subtitle">Sistem Informasi Manajemen Aset Sekolah</p>
+            </div>
+
+            <form onsubmit="handleLogin(event)" style="display: flex; flex-direction: column; gap: 1rem; padding-top: 0.5rem;">
+                <div class="form-group">
+                    <label for="loginId" class="form-label">ID User / NIP</label>
+                    <input type="text" id="loginId" required class="form-input" placeholder="Masukkan ID User">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword" class="form-label">Kata Sandi / PIN</label>
+                    <input type="password" id="loginPassword" required class="form-input" placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem;">
+                    Masuk ke Sistem
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- DASHBOARD PAGE -->
+    <div id="dashboardPage" class="hidden">
+        <header class="dashboard-header no-print">
+            <div class="header-container">
+                <div class="header-brand">
+                    <div class="header-logo">263</div>
+                    <div class="header-title-group">
+                        <h2>SIMAS SMPN 263 JAKARTA</h2>
+                        <p>Panel Kendali Manajemen Aset & Logistik</p>
+                    </div>
+                </div>
+                <div class="header-user-section">
+                    <div class="user-info">
+                        <p class="user-nip" id="userDisplayNip">NIP: 222581</p>
+                        <p class="user-role">Pengelola Barang Inventaris</p>
+                    </div>
+                    <button onclick="handleLogout()" class="btn-logout">
+                        Keluar
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-main">
+
+            <!-- STATS SECTION -->
+            <section class="stats-grid no-print">
+                <div class="stat-card">
+                    <span class="stat-title">Total Entri Aset</span>
+                    <span class="stat-value" id="statTotalAset">0</span>
+                </div>
+                <div class="stat-card stat-card-baik">
+                    <span class="stat-title">Kondisi Baik</span>
+                    <span class="stat-value" id="statKondisiBaik">0</span>
+                </div>
+                <div class="stat-card stat-card-rusak-ringan">
+                    <span class="stat-title">Rusak Ringan</span>
+                    <span class="stat-value" id="statKondisiRusakRingan">0</span>
+                </div>
+                <div class="stat-card stat-card-rusak-berat">
+                    <span class="stat-title">Rusak Berat</span>
+                    <span class="stat-value" id="statKondisiRusakBerat">0</span>
+                </div>
+            </section>
+
+            <!-- MAIN GRID CONTENT -->
+            <section class="content-grid no-print">
+
+                <!-- Left Column: Add Asset Form -->
+                <div class="card-panel">
+                    <div class="panel-header">
+                        <h3 class="panel-title" id="formTitle">Tambah Aset Baru</h3>
+                        <button onclick="resetFormAset()" class="btn-batal-edit hidden" id="btnBatalEdit">Batal</button>
+                    </div>
+
+                    <form id="formAset" onsubmit="simpanData(event)" style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <div class="form-group">
+                                <label for="idAset" class="form-label">ID Aset (Kode Registrasi)</label>
+                                <input type="text" id="idAset" required oninput="pemicuBarcodeFormDinamis(this.value)"
+                                    class="form-input" placeholder="Contoh: AST-263-001">
+                            </div>
+                            <div class="form-group">
+                                <label for="jenisBarang" class="form-label">Jenis Barang (Input Manual)</label>
+                                <input type="text" id="jenisBarang" required class="form-input" placeholder="Contoh: Printer, Laptop, Meja, dll">
+                            </div>
+                            <div class="form-dynamic-row">
+                                <div class="form-group">
+                                    <label for="merkBarang" class="form-label">Merk / Pabrikan</label>
+                                    <input type="text" id="merkBarang" required class="form-input" placeholder="Contoh: Epson">
+                                </div>
+                                <div class="form-group">
+                                    <label for="typeBarang" class="form-label">Type Barang / Seri</label>
+                                    <input type="text" id="typeBarang" required class="form-input" placeholder="Contoh: L3210">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <div class="form-dynamic-row">
+                                <div class="form-group">
+                                    <label for="pembelianTriwulan" class="form-label">Triwulan Pembelian</label>
+                                    <select id="pembelianTriwulan" class="form-select">
+                                        <option value="Triwulan 1">Triwulan 1</option>
+                                        <option value="Triwulan 2">Triwulan 2</option>
+                                        <option value="Triwulan 3">Triwulan 3</option>
+                                        <option value="Triwulan 4">Triwulan 4</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="pembelianTahun" class="form-label">Tahun Pengadaan</label>
+                                    <select id="pembelianTahun" class="form-select">
+                                        <option value="2026">2026</option>
+                                        <option value="2025">2025</option>
+                                        <option value="2024">2024</option>
+                                        <option value="2023">2023</option>
+                                        <option value="2022">2022</option>
+                                        <option value="2021">2021</option>
+                                        <option value="Sebelum 2021">Sebelum 2021</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <div class="form-dynamic-row">
+                                <div class="form-group">
+                                    <label for="lokasiLantai" class="form-label">Penempatan Lantai</label>
+                                    <select id="lokasiLantai" class="form-select">
+                                        <option value="Lantai 1">Lantai 1</option>
+                                        <option value="Lantai 2">Lantai 2</option>
+                                        <option value="Lantai 3">Lantai 3</option>
+                                        <option value="Lantai 4">Lantai 4</option>
+                                        <option value="Area Luar / Lapangan">Area Luar</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="kondisi" class="form-label">Kondisi Mutakhir</label>
+                                    <select id="kondisi" class="form-select">
+                                        <option value="Baik">Baik</option>
+                                        <option value="Rusak Ringan">Rusak Ringan</option>
+                                        <option value="Rusak Berat">Rusak Berat</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="lokasiRuang" class="form-label">Spesifikasi Ruang</label>
+                                <select id="lokasiRuang" class="form-select">
+                                    <option value="Ruang Guru">Ruang Guru</option>
+                                    <option value="Ruang Kepala Sekolah">Ruang Kepala Sekolah</option>
+                                    <option value="Ruang Tata Usaha (TU)">Ruang Tata Usaha (TU)</option>
+                                    <option value="Ruang Kelas">Ruang Kelas</option>
+                                    <option value="Laboratorium Komputer">Laboratorium Komputer</option>
+                                    <option value="Laboratorium IPA">Laboratorium IPA</option>
+                                    <option value="Perpustakaan">Perpustakaan</option>
+                                    <option value="Ruang Multimedia / Aula">Ruang Multimedia / Aula</option>
+                                    <option value="Ruang OSIS">Ruang OSIS</option>
+                                    <option value="Ruang UKS">Ruang UKS</option>
+                                    <option value="Kantin">Kantin</option>
+                                    <option value="Mushola">Mushola</option>
+                                    <option value="Ruang Musik">Ruang Musik</option>
+                                    <option value="Gudang Utama">Gudang Utama</option>
+                                    <option value="Lainnya">Spesifikasi Ruang Lain</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="barcode-placeholder-box">
+                            <svg id="formBarcodeCanvas" class="hidden"></svg>
+                            <span id="formBarcodePlaceholder" class="barcode-placeholder-text">Barcode Generator</span>
+                        </div>
+
+                        <button type="submit" class="btn-submit-aset">
+                            Simpan Rekor Aset
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Right Column: Actions, Pie Chart, Filters -->
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+                    <!-- Row: Actions & Chart -->
+                    <div style="display: grid; grid-template-cols: 1fr; gap: 1.5rem;">
+                        <script>
+                            // Handle split layouts cleanly for charts and actions at larger screens
+                            if (window.innerWidth >= 768) {
+                                document.currentScript.parentElement.style.gridTemplateColumns = "1fr 1fr";
+                            }
+                            window.addEventListener('resize', () => {
+                                if (window.innerWidth >= 768) {
+                                    document.currentScript.parentElement.style.gridTemplateColumns = "1fr 1fr";
+                                } else {
+                                    document.currentScript.parentElement.style.gridTemplateColumns = "1fr";
+                                }
+                            });
+                        </script>
+                        
+                        <!-- Actions Panel -->
+                        <div class="card-panel">
+                            <div>
+                                <h3 class="panel-title">Aksi Massal & Integrasi</h3>
+                                <p class="panel-subtitle">Impor data dari Excel lama atau cadangkan database sistem</p>
+                            </div>
+                            <div class="action-buttons-group">
+                                <div class="btn-grid">
+                                    <button onclick="unduhTemplateExcelOtomatis()" class="btn-outline">
+                                        Template
+                                    </button>
+                                    <label class="btn-outline">
+                                        Impor Excel
+                                        <input type="file" id="excelFileInput" accept=".xlsx, .xls" onchange="bacaFileExcelMassal(event)" class="hidden">
+                                    </label>
+                                </div>
+                                <button onclick="eksporDataKeExcel()" class="btn-sky">
+                                    Ekspor Database (.xlsx)
+                                </button>
+                                <button onclick="hapusSemuaDatabaseAset()" class="btn-danger-light">
+                                    Hapus Semua Data
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Pie Chart Panel -->
+                        <div class="card-panel">
+                            <div>
+                                <h3 class="panel-title">Proporsi Jenis Barang</h3>
+                                <p class="panel-subtitle">Persentase sebaran aset berdasarkan Jenis Barang</p>
+                            </div>
+                            <div class="pie-chart-wrapper">
+                                <canvas id="kategoriPieChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search & Filter Panel -->
+                    <div class="card-panel">
+                        <div>
+                            <h3 class="panel-title">Pencarian & Penyaringan Data</h3>
+                        </div>
+                        <div class="filter-inputs-group">
+                            <input type="text" id="filterPencarian" oninput="perbaruiTampilanDanStatistik()"
+                                placeholder="Cari ID, Jenis, Merk, atau Type..." class="form-input">
+                            <select id="filterKondisi" onchange="perbaruiTampilanDanStatistik()" class="form-select" style="font-weight: 700; color: var(--slate-600);">
+                                <option value="">Semua Kondisi</option>
+                                <option value="Baik">Baik</option>
+                                <option value="Rusak Ringan">Rusak Ringan</option>
+                                <option value="Rusak Berat">Rusak Berat</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- DATABASE TABLE SECTION -->
+            <section class="table-panel">
+                <div class="card-panel" style="border: none; box-shadow: none; border-bottom: 1px solid var(--slate-100); border-radius: 0; padding: 1rem 1.5rem;">
+                    <h3 class="panel-title">Tabel Inventaris Utama</h3>
+                    <p class="panel-subtitle">Daftar fisik barang yang tercatat pada cloud database</p>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 35%;">Detail Deskripsi Aset</th>
+                                <th style="width: 15%;">Klasifikasi</th>
+                                <th style="width: 15%;">Pengadaan</th>
+                                <th style="width: 15%;">Lokasi Ruang</th>
+                                <th style="text-align: center; width: 10%;">Status</th>
+                                <th class="no-print" style="text-align: right; width: 10%;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelAsetBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- PRINT PREVIEW ZONE -->
+    <div id="printZone" class="hidden">
+        <h2 class="print-title">LABEL INVENTARIS RESMI</h2>
+        <p class="print-asset-name" id="printNamaBarang"></p>
+        <div class="print-barcode-container">
+            <svg id="printBarcodeCanvas"></svg>
+        </div>
+        <p class="print-asset-id" id="printIdAset"></p>
+        <p class="print-footer">SIMAS v2.0 • SMPN 263 JAKARTA</p>
+    </div>
+
+    <!-- App Configuration & Logics -->
+    <script src="config.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
