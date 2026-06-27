@@ -63,9 +63,14 @@
                         <p class="user-nip" id="userDisplayNip">NIP: 222581</p>
                         <p class="user-role">Pengelola Barang Inventaris</p>
                     </div>
-                    <button onclick="handleLogout()" class="btn-logout">
-                        Keluar
-                    </button>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <button onclick="muatDataDariCloud()" class="btn-outline" style="padding: 0.5rem 0.875rem; font-size: 0.75rem;">
+                            🔄 Sinkronisasi
+                        </button>
+                        <button onclick="handleLogout()" class="btn-logout">
+                            Keluar
+                        </button>
+                    </div>
                 </div>
             </div>
         </header>
