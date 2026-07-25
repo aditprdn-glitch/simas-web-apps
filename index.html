@@ -26,8 +26,8 @@
     <div id="loginPage">
         <div class="login-card">
             <div class="login-header">
-                <div class="login-logo">263</div>
-                <h1 class="login-title">SIMAS 263</h1>
+                <div class="login-logo"><img src="asset/logo-263.png" alt="Logo SMP Negeri 263 Jakarta"></div>
+                <h1 class="login-title">SISTEM INFORMASI MANAJEMEN ASET 263</h1>
                 <p class="login-subtitle">Sistem Informasi Manajemen Aset Sekolah</p>
             </div>
 
@@ -52,7 +52,7 @@
         <header class="dashboard-header no-print">
             <div class="header-container">
                 <div class="header-brand">
-                    <div class="header-logo">263</div>
+                    <div class="header-logo"><img src="asset/logo-263.png" alt="Logo SMP Negeri 263 Jakarta"></div>
                     <div class="header-title-group">
                         <h2>SIMAS SMPN 263 JAKARTA</h2>
                         <p>Panel Kendali Manajemen Aset & Logistik</p>
@@ -127,6 +127,10 @@
                                     <label for="typeBarang" class="form-label">Type Barang / Seri</label>
                                     <input type="text" id="typeBarang" required class="form-input" placeholder="Contoh: L3210">
                                 </div>
+                                <div class="form-group">
+                                    <label for="sumberDana" class="form-label">Sumber Perolehan Dana</label>
+                                    <input type="text" id="sumberDana" required class="form-input" placeholder="Contoh: BOS / BOP / HIBAH">
+                                </div>
                             </div>
                         </div>
 
@@ -183,7 +187,27 @@
                                     <option value="Ruang Guru">Ruang Guru</option>
                                     <option value="Ruang Kepala Sekolah">Ruang Kepala Sekolah</option>
                                     <option value="Ruang Tata Usaha (TU)">Ruang Tata Usaha (TU)</option>
-                                    <option value="Ruang Kelas">Ruang Kelas</option>
+                                    <option value="Ruang Kelas 7A">Ruang Kelas 7A</option>
+                                    <option value="Ruang Kelas 7B">Ruang Kelas 7B</option>
+                                    <option value="Ruang Kelas 7C">Ruang Kelas 7C</option>
+                                    <option value="Ruang Kelas 7D">Ruang Kelas 7D</option>
+                                    <option value="Ruang Kelas 7E">Ruang Kelas 7E</option>
+                                    <option value="Ruang Kelas 7F">Ruang Kelas 7F</option>
+                                    <option value="Ruang Kelas 7G">Ruang Kelas 7G</option>
+                                    <option value="Ruang Kelas 8A">Ruang Kelas 8A</option>
+                                    <option value="Ruang Kelas 8B">Ruang Kelas 8B</option>
+                                    <option value="Ruang Kelas 8C">Ruang Kelas 8C</option>
+                                    <option value="Ruang Kelas 8D">Ruang Kelas 8D</option>
+                                    <option value="Ruang Kelas 8E">Ruang Kelas 8E</option>
+                                    <option value="Ruang Kelas 8F">Ruang Kelas 8F</option>
+                                    <option value="Ruang Kelas 8G">Ruang Kelas 8G</option>
+                                    <option value="Ruang Kelas 9A">Ruang Kelas 9A</option>
+                                    <option value="Ruang Kelas 9B">Ruang Kelas 9B</option>
+                                    <option value="Ruang Kelas 9C">Ruang Kelas 9C</option>
+                                    <option value="Ruang Kelas 9D">Ruang Kelas 9D</option>
+                                    <option value="Ruang Kelas 9E">Ruang Kelas 9E</option>
+                                    <option value="Ruang Kelas 9F">Ruang Kelas 9F</option>
+                                    <option value="Ruang Kelas 9G">Ruang Kelas 9G</option>
                                     <option value="Laboratorium Komputer">Laboratorium Komputer</option>
                                     <option value="Laboratorium IPA">Laboratorium IPA</option>
                                     <option value="Perpustakaan">Perpustakaan</option>
@@ -297,12 +321,13 @@
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th style="width: 35%;">Detail Deskripsi Aset</th>
-                                <th style="width: 15%;">Klasifikasi</th>
-                                <th style="width: 15%;">Pengadaan</th>
-                                <th style="width: 15%;">Lokasi Ruang</th>
-                                <th style="text-align: center; width: 10%;">Status</th>
-                                <th class="no-print" style="text-align: right; width: 10%;">Aksi</th>
+                                <th style="width: 26%;">Detail Deskripsi Aset</th>
+                                <th style="width: 12%;">Klasifikasi</th>
+                                <th style="width: 13%;">Sumber Dana</th>
+                                <th style="width: 13%;">Pengadaan</th>
+                                <th style="width: 13%;">Lokasi Ruang</th>
+                                <th style="text-align: center; width: 11%;">Status</th>
+                                <th class="no-print" style="text-align: right; width: 12%;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="tabelAsetBody">

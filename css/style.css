@@ -104,17 +104,16 @@ body {
 .login-logo {
     width: 4rem;
     height: 4rem;
-    background-color: var(--sky-50);
-    border-radius: var(--border-radius-lg);
     margin: 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 900;
-    color: var(--sky-600);
-    font-size: 1.25rem;
-    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
-    letter-spacing: 0.05em;
+}
+
+.login-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .login-title {
@@ -256,15 +255,15 @@ header.dashboard-header {
 .header-logo {
     width: 2.5rem;
     height: 2.5rem;
-    background-color: var(--slate-900);
-    border-radius: var(--border-radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 900;
-    color: #ffffff;
-    font-size: 0.875rem;
-    box-shadow: var(--box-shadow);
+}
+
+.header-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .header-title-group h2 {

@@ -1,5 +1,5 @@
 // SMPN 263 Jakarta - SIMAS Asset Management Script
-let databaseAset = JSON.parse(localStorage.getItem('SMPN263_EXCEL_ASSETS')) || [];
+let databaseAset = [];
 let pieChartInstance = null;
 
 // Initialize app
@@ -37,39 +37,48 @@ function handleLogout() {
 function tampilkanDashboard() {
     document.getElementById('loginPage').classList.add('hidden');
     document.getElementById('dashboardPage').classList.remove('hidden');
-    perbaruiTampilanDanStatistik();
+    tampilkanPesanTabel("Memuat data dari cloud...");
     muatDataDariCloud();
+}
+
+// Show a placeholder message spanning the whole table (loading/error/empty states)
+function tampilkanPesanTabel(pesan) {
+    const tbody = document.getElementById('tabelAsetBody');
+    tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-6 text-center text-slate-400 font-bold" style="font-weight: 700; color: var(--slate-400);">${pesan}</td></tr>`;
 }
 
 // Load data from Google Sheets Cloud
 function muatDataDariCloud() {
-    if (!CONFIG.WEB_APP_URL) return;
-    
+    if (!CONFIG.WEB_APP_URL) {
+        tampilkanPesanTabel("URL Google Apps Script belum dikonfigurasi.");
+        return;
+    }
+
     fetch(CONFIG.WEB_APP_URL)
         .then(response => {
             if (!response.ok) throw new Error("Gagal mengambil data dari server");
             return response.json();
         })
         .then(data => {
-            if (Array.isArray(data)) {
-                databaseAset = data.map(item => ({
-                    ID_Aset: item.ID_Aset || item.idAset || "",
-                    Jenis_Barang: item.Jenis_Barang || item.jenisBarang || "",
-                    Merk: item.Merk || item.merkBarang || "",
-                    Type_Barang: item.Type_Barang || item.typeBarang || "",
-                    Triwulan: item.Triwulan || item.pembelianTriwulan || "",
-                    Tahun: item.Tahun || item.pembelianTahun || "",
-                    Lantai: item.Lantai || item.lokasiLantai || "",
-                    Ruang: item.Ruang || item.lokasiRuang || "",
-                    Kondisi: item.Kondisi || item.kondisi || ""
-                }));
-                localStorage.setItem('SMPN263_EXCEL_ASSETS', JSON.stringify(databaseAset));
-                perbaruiTampilanDanStatistik();
-                console.log("Database successfully synced from cloud.");
-            }
+            if (!Array.isArray(data)) throw new Error("Format data dari server tidak valid");
+            databaseAset = data.map(item => ({
+                ID_Aset: item.ID_ASET || "",
+                Jenis_Barang: item.JENIS_BARANG || "",
+                Merk: item.MERK || "",
+                Type_Barang: item.TYPE_BARANG || "",
+                Sumber_Perolehan_Dana: item.SUMBER_PEROLEHAN_DANA || "",
+                Triwulan: item.TRIWULAN || "",
+                Tahun: item.TAHUN || "",
+                Lantai: item.LANTAI || "",
+                Ruang: item.RUANG || "",
+                Kondisi: item.KONDISI || ""
+            }));
+            perbaruiTampilanDanStatistik();
+            console.log("Database successfully synced from cloud.");
         })
         .catch(err => {
             console.error("Gagal sinkronisasi data dari cloud:", err);
+            tampilkanPesanTabel("Gagal memuat data dari cloud. Cek koneksi internet atau buka Console (F12) untuk detail error.");
         });
 }
 
@@ -108,6 +117,7 @@ function simpanData(e) {
         Jenis_Barang: document.getElementById('jenisBarang').value.trim(),
         Merk: document.getElementById('merkBarang').value.trim(),
         Type_Barang: document.getElementById('typeBarang').value.trim(),
+        Sumber_Perolehan_Dana: document.getElementById('sumberDana').value.trim(),
         Triwulan: document.getElementById('pembelianTriwulan').value,
         Tahun: document.getElementById('pembelianTahun').value,
         Lantai: document.getElementById('lokasiLantai').value,
@@ -137,6 +147,7 @@ function simpanData(e) {
                 key === 'Jenis_Barang' ? 'jenisBarang' : 
                 key === 'Merk' ? 'merkBarang' : 
                 key === 'Type_Barang' ? 'typeBarang' : 
+                key === 'Sumber_Perolehan_Dana' ? 'sumberDana' :
                 key === 'Triwulan' ? 'pembelianTriwulan' : 
                 key === 'Tahun' ? 'pembelianTahun' : 
                 key === 'Lantai' ? 'lokasiLantai' : 
@@ -164,10 +175,10 @@ function simpanData(e) {
 // Download Excel Template for Mass Import
 function unduhTemplateExcelOtomatis() {
     const matriksData = [
-        ["ID Aset", "Jenis Barang", "Merk", "Type Barang", "Triwulan", "Tahun", "Lantai", "Ruang", "Kondisi"],
-        ["AST-263-001", "Printer", "Epson", "L3210", "Triwulan 1", "2026", "Lantai 2", "Ruang Musik", "Baik"],
-        ["AST-263-002", "Laptop", "ASUS", "ExpertBook B1", "Triwulan 2", "2025", "Lantai 1", "Ruang Tata Usaha (TU)", "Baik"],
-        ["AST-263-003", "Kursi Siswa", "Chitose", "Yamato", "Triwulan 1", "2024", "Lantai 3", "Ruang Kelas", "Baik"]
+        ["ID Aset", "Jenis Barang", "Merk", "Type Barang", "Sumber Perolehan Dana", "Triwulan", "Tahun", "Lantai", "Ruang", "Kondisi"],
+        ["AST-263-001", "Printer", "Epson", "L3210", "BOS", "Triwulan 1", "2026", "Lantai 2", "Ruang Musik", "Baik"],
+        ["AST-263-002", "Laptop", "ASUS", "ExpertBook B1", "BOP", "Triwulan 2", "2025", "Lantai 1", "Ruang Tata Usaha (TU)", "Baik"],
+        ["AST-263-003", "Kursi Siswa", "Chitose", "Yamato", "HIBAH", "Triwulan 1", "2024", "Lantai 3", "Ruang Kelas", "Baik"]
     ];
     const worksheet = XLSX.utils.aoa_to_sheet(matriksData);
     const workbook = XLSX.utils.book_new();
@@ -200,11 +211,12 @@ function bacaFileExcelMassal(event) {
                 Jenis_Barang: String(baris[1]).trim(),
                 Merk: baris[2] ? String(baris[2]).trim() : "-",
                 Type_Barang: baris[3] ? String(baris[3]).trim() : "-",
-                Triwulan: baris[4] ? String(baris[4]).trim() : "Triwulan 1",
-                Tahun: baris[5] ? String(baris[5]).trim() : "2026",
-                Lantai: baris[6] ? String(baris[6]).trim() : "Lantai 1",
-                Ruang: baris[7] ? String(baris[7]).trim() : "Ruang Guru",
-                Kondisi: baris[8] ? String(baris[8]).trim() : "Baik"
+                Sumber_Perolehan_Dana: baris[4] ? String(baris[4]).trim() : "-",
+                Triwulan: baris[5] ? String(baris[5]).trim() : "Triwulan 1",
+                Tahun: baris[6] ? String(baris[6]).trim() : "2026",
+                Lantai: baris[7] ? String(baris[7]).trim() : "Lantai 1",
+                Ruang: baris[8] ? String(baris[8]).trim() : "Ruang Guru",
+                Kondisi: baris[9] ? String(baris[9]).trim() : "Baik"
             };
 
             databaseAset.push(dataPaket);
@@ -216,6 +228,7 @@ function bacaFileExcelMassal(event) {
                 formData.append('jenisBarang', dataPaket.Jenis_Barang);
                 formData.append('merkBarang', dataPaket.Merk);
                 formData.append('typeBarang', dataPaket.Type_Barang);
+                formData.append('sumberDana', dataPaket.Sumber_Perolehan_Dana);
                 formData.append('pembelianTriwulan', dataPaket.Triwulan);
                 formData.append('pembelianTahun', dataPaket.Tahun);
                 formData.append('lokasiLantai', dataPaket.Lantai);
@@ -237,8 +250,8 @@ function eksporDataKeExcel() {
     if (databaseAset.length === 0) {
         return alert("Database kosong.");
     }
-    const header = ["ID Aset", "Jenis Barang", "Merk", "Type Barang", "Triwulan", "Tahun", "Lantai", "Ruang", "Kondisi"];
-    const dataBaris = databaseAset.map(x => [x.ID_Aset, x.Jenis_Barang, x.Merk, x.Type_Barang, x.Triwulan, x.Tahun, x.Lantai, x.Ruang, x.Kondisi]);
+    const header = ["ID_ASET", "JENIS_BARANG", "MERK", "TYPE_BARANG", "SUMBER_PEROLEHAN_DANA", "TRIWULAN", "TAHUN", "LANTAI", "RUANG", "KONDISI"];
+    const dataBaris = databaseAset.map(x => [x.ID_Aset, x.Jenis_Barang, x.Merk, x.Type_Barang, x.Sumber_Perolehan_Dana, x.Triwulan, x.Tahun, x.Lantai, x.Ruang, x.Kondisi]);
     const worksheet = XLSX.utils.aoa_to_sheet([header, ...dataBaris]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Database");
@@ -254,7 +267,6 @@ function hapusSemuaDatabaseAset() {
     if (confirm("PERINGATAN TINGKAT TINGGI:\nApakah Anda yakin ingin menghapus SELURUH data aset di sistem ini? Tindakan ini tidak dapat dibatalkan!")) {
         if (confirm("KONFIRMASI TERAKHIR:\nSemua data fisik inventaris akan hilang dari penyimpanan lokal. Lanjutkan proses pengosongan database?")) {
             databaseAset = [];
-            localStorage.removeItem('SMPN263_EXCEL_ASSETS');
 
             resetFormAset();
             perbaruiTampilanDanStatistik();
@@ -314,7 +326,6 @@ function renderKategoriPieChart() {
 
 // Re-render statistics, charts, and data tables
 function perbaruiTampilanDanStatistik() {
-    localStorage.setItem('SMPN263_EXCEL_ASSETS', JSON.stringify(databaseAset));
     const kueri = document.getElementById('filterPencarian').value.toLowerCase().trim();
     const fKon = document.getElementById('filterKondisi').value;
 
@@ -339,7 +350,7 @@ function perbaruiTampilanDanStatistik() {
     tbody.innerHTML = "";
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-6 text-center text-slate-400 font-bold" style="font-weight: 700; color: var(--slate-400);">Tidak ada rekor data aset yang sesuai.</td></tr>`;
+        tampilkanPesanTabel("Tidak ada rekor data aset yang sesuai.");
         return;
     }
 
@@ -366,6 +377,9 @@ function perbaruiTampilanDanStatistik() {
             </td>
             <td>
                 <span class="badge-category">${barang.Jenis_Barang}</span>
+            </td>
+            <td>
+                <span class="badge-category">${barang.Sumber_Perolehan_Dana}</span>
             </td>
             <td>
                 ${barang.Triwulan}<br>
@@ -397,6 +411,7 @@ function muatDataKeFormUbah(idTarget) {
         document.getElementById('jenisBarang').value = barang.Jenis_Barang || "";
         document.getElementById('merkBarang').value = barang.Merk || "";
         document.getElementById('typeBarang').value = barang.Type_Barang || "";
+        document.getElementById('sumberDana').value = barang.Sumber_Perolehan_Dana || "";
         document.getElementById('pembelianTriwulan').value = barang.Triwulan;
         document.getElementById('pembelianTahun').value = barang.Tahun;
         document.getElementById('lokasiLantai').value = barang.Lantai;
@@ -410,11 +425,33 @@ function muatDataKeFormUbah(idTarget) {
 
 // Delete asset record
 function hapusAset(idTarget) {
-    if (confirm(`Hapus rekor aset ${idTarget}?`)) {
+    if (!confirm(`Hapus rekor aset ${idTarget}?`)) return;
+
+    if (!CONFIG.WEB_APP_URL) {
         databaseAset = databaseAset.filter(x => x.ID_Aset !== idTarget);
         perbaruiTampilanDanStatistik();
         resetFormAset();
+        return;
     }
+
+    const formData = new URLSearchParams();
+    formData.append('action', 'delete');
+    formData.append('idAset', idTarget);
+
+    fetch(CONFIG.WEB_APP_URL, { method: 'POST', body: formData })
+        .then(response => {
+            if (!response.ok) throw new Error("Gagal menghapus data di server");
+            return response.json();
+        })
+        .then(() => {
+            databaseAset = databaseAset.filter(x => x.ID_Aset !== idTarget);
+            perbaruiTampilanDanStatistik();
+            resetFormAset();
+        })
+        .catch(err => {
+            console.error('Gagal menghapus data di cloud:', err);
+            alert('Gagal menghapus data di cloud. Aset tidak dihapus dari Google Sheet. Coba lagi.');
+        });
 }
 
 // Reset asset form state
