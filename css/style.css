@@ -417,14 +417,14 @@ main.dashboard-main {
 /* --- TWO COLUMN SECTION --- */
 .content-grid {
     display: grid;
-    grid-template-cols: 1fr;
+    grid-template-columns: 1fr;
     gap: 1.5rem;
     align-items: start;
 }
 
 @media (min-width: 1024px) {
     .content-grid {
-        grid-template-cols: 1fr 2fr;
+        grid-template-columns: 1fr 2fr;
     }
 }
 
@@ -600,25 +600,238 @@ main.dashboard-main {
 }
 
 /* Pie Chart Container */
+.pie-chart-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.pie-chart-year-filter {
+    width: auto;
+    flex-shrink: 0;
+    font-weight: 700;
+    color: var(--slate-600);
+}
+
+.pie-chart-detail-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    align-items: center;
+}
+
+@media (min-width: 640px) {
+    .pie-chart-detail-layout {
+        grid-template-columns: minmax(180px, 220px) 1fr;
+    }
+}
+
 .pie-chart-wrapper {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    max-height: 160px;
+    height: 220px;
 }
 
-/* Search and filter panel styling */
-.filter-inputs-group {
-    display: grid;
-    grid-template-cols: 1fr;
+.pie-chart-detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.pie-chart-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.5rem;
+    background-color: var(--slate-50);
+    border: 1px solid var(--slate-100);
+}
+
+.pie-chart-detail-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 0.75rem;
 }
 
-@media (min-width: 640px) {
-    .filter-inputs-group {
-        grid-template-cols: repeat(2, 1fr);
-    }
+.pie-chart-detail-sumber {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--slate-400);
+    padding-left: 1.15rem;
+}
+
+.pie-chart-detail-item .label-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--slate-700);
+}
+
+.pie-chart-detail-item .color-dot {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 9999px;
+    flex-shrink: 0;
+}
+
+.pie-chart-detail-item .value-group {
+    display: flex;
+    align-items: baseline;
+    gap: 0.375rem;
+    white-space: nowrap;
+}
+
+.pie-chart-detail-item .value-count {
+    font-weight: 900;
+    font-size: 0.85rem;
+    color: var(--slate-900);
+}
+
+.pie-chart-detail-item .value-percent {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--slate-400);
+}
+
+.pie-chart-empty {
+    font-size: 0.8rem;
+    color: var(--slate-400);
+    text-align: center;
+    padding: 1rem 0;
+}
+
+/* Search and filter panel styling */
+.filter-checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.625rem;
+    align-items: flex-start;
+}
+
+.multiselect-filter {
+    position: relative;
+}
+
+.multiselect-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--slate-250);
+    background-color: rgba(248, 250, 252, 0.5);
+    color: var(--slate-600);
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.multiselect-trigger:hover {
+    background-color: var(--slate-50);
+}
+
+.multiselect-trigger.has-active {
+    border-color: var(--sky-600);
+    background-color: var(--sky-50);
+    color: var(--sky-700);
+}
+
+.multiselect-trigger.is-open .multiselect-chevron {
+    transform: rotate(180deg);
+}
+
+.multiselect-chevron {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.multiselect-panel {
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    left: 0;
+    z-index: 20;
+    min-width: 200px;
+    max-height: 260px;
+    overflow-y: auto;
+    background-color: #ffffff;
+    border: 1px solid var(--slate-250);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--box-shadow);
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.multiselect-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--slate-700);
+    cursor: pointer;
+}
+
+.multiselect-option:hover {
+    background-color: var(--slate-50);
+}
+
+.multiselect-option input[type="checkbox"] {
+    width: 0.9rem;
+    height: 0.9rem;
+    accent-color: var(--sky-600);
+    cursor: pointer;
+}
+
+.multiselect-subheading {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--slate-400);
+    padding: 0.5rem 0.5rem 0.15rem;
+}
+
+.multiselect-subheading:first-child {
+    padding-top: 0.15rem;
+}
+
+.multiselect-empty {
+    font-size: 0.75rem;
+    color: var(--slate-400);
+    padding: 0.3rem 0.5rem;
+}
+
+.filter-reset-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 0.85rem;
+    border-radius: var(--border-radius-md);
+    border: 1px solid transparent;
+    background-color: transparent;
+    color: var(--rose-600);
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-reset-btn:hover {
+    background-color: var(--rose-50);
 }
 
 /* --- TABLE SECTION --- */

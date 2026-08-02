@@ -2,6 +2,18 @@
 let databaseAset = [];
 let pieChartInstance = null;
 
+// Escape a value before interpolating it into innerHTML or an HTML attribute,
+// so asset data (which can come from Excel import or the shared Sheet) can't break out
+// of its element/attribute context and inject markup or script.
+function escapeHtml(nilai) {
+    return String(nilai ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 // Initialize app
 window.onload = function () {
     if (sessionStorage.getItem('simas_logged_in') === 'true') {
@@ -18,8 +30,18 @@ function handleLogin(event) {
     const loginIdInput = document.getElementById('loginId').value.trim();
     const loginPinInput = document.getElementById('loginPassword').value.trim();
 
-    if (loginIdInput === CONFIG.ADMIN_ID && loginPinInput === CONFIG.ADMIN_PIN) {
+    let peranTerautentikasi = null;
+    for (const [peran, kredensial] of Object.entries(CONFIG.USERS)) {
+        if (loginIdInput === kredensial.id && loginPinInput === kredensial.pin) {
+            peranTerautentikasi = peran;
+            break;
+        }
+    }
+
+    if (peranTerautentikasi) {
         sessionStorage.setItem('simas_logged_in', 'true');
+        sessionStorage.setItem('simas_role', peranTerautentikasi);
+        sessionStorage.setItem('simas_user_id', loginIdInput);
         tampilkanDashboard();
     } else {
         alert("Otentikasi Gagal! ID User atau PIN salah.");
@@ -29,14 +51,36 @@ function handleLogin(event) {
 // Logout execution
 function handleLogout() {
     sessionStorage.removeItem('simas_logged_in');
+    sessionStorage.removeItem('simas_role');
+    sessionStorage.removeItem('simas_user_id');
     document.getElementById('loginPage').classList.remove('hidden');
     document.getElementById('dashboardPage').classList.add('hidden');
+}
+
+// Returns true only for the SUPERUSER role; used to gate destructive actions client-side
+// (the real enforcement happens server-side in the Apps Script doPost)
+function isSuperuser() {
+    return sessionStorage.getItem('simas_role') === 'SUPERUSER';
+}
+
+// Reflect the logged-in user's identity and role in the header, and hide superuser-only controls
+function terapkanTampilanPeran() {
+    const peran = sessionStorage.getItem('simas_role') || '';
+    const userId = sessionStorage.getItem('simas_user_id') || '';
+
+    document.getElementById('userDisplayNip').textContent = `NIP: ${userId}`;
+    document.getElementById('userDisplayRole').textContent = peran === 'SUPERUSER'
+        ? 'Superuser'
+        : 'Pengelola Barang Inventaris';
+
+    document.getElementById('btnHapusSemuaData').classList.toggle('hidden', !isSuperuser());
 }
 
 // Show main panel
 function tampilkanDashboard() {
     document.getElementById('loginPage').classList.add('hidden');
     document.getElementById('dashboardPage').classList.remove('hidden');
+    terapkanTampilanPeran();
     tampilkanPesanTabel("Memuat data dari cloud...");
     muatDataDariCloud();
 }
@@ -44,7 +88,7 @@ function tampilkanDashboard() {
 // Show a placeholder message spanning the whole table (loading/error/empty states)
 function tampilkanPesanTabel(pesan) {
     const tbody = document.getElementById('tabelAsetBody');
-    tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-6 text-center text-slate-400 font-bold" style="font-weight: 700; color: var(--slate-400);">${pesan}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-6 text-center text-slate-400 font-bold" style="font-weight: 700; color: var(--slate-400);">${escapeHtml(pesan)}</td></tr>`;
 }
 
 // Load data from Google Sheets Cloud
@@ -54,12 +98,15 @@ function muatDataDariCloud() {
         return;
     }
 
-    fetch(CONFIG.WEB_APP_URL)
+    const url = `${CONFIG.WEB_APP_URL}?token=${encodeURIComponent(CONFIG.API_TOKEN)}`;
+
+    fetch(url)
         .then(response => {
             if (!response.ok) throw new Error("Gagal mengambil data dari server");
             return response.json();
         })
         .then(data => {
+            if (data && data.status === 'unauthorized') throw new Error("Token API ditolak oleh server (cek konfigurasi CONFIG.API_TOKEN)");
             if (!Array.isArray(data)) throw new Error("Format data dari server tidak valid");
             databaseAset = data.map(item => ({
                 ID_Aset: item.ID_ASET || "",
@@ -157,6 +204,7 @@ function simpanData(e) {
                 formData.append(mappedKey, dataPaket[key]);
             }
         });
+        formData.append('token', CONFIG.API_TOKEN);
 
         fetch(CONFIG.WEB_APP_URL, {
             method: 'POST',
@@ -234,6 +282,7 @@ function bacaFileExcelMassal(event) {
                 formData.append('lokasiLantai', dataPaket.Lantai);
                 formData.append('lokasiRuang', dataPaket.Ruang);
                 formData.append('kondisi', dataPaket.Kondisi);
+                formData.append('token', CONFIG.API_TOKEN);
                 fetch(CONFIG.WEB_APP_URL, { method: 'POST', body: formData });
             }
         }
@@ -258,40 +307,141 @@ function eksporDataKeExcel() {
     XLSX.writeFile(workbook, "DATABASE_SIMAS_263.xlsx");
 }
 
-// Purge database
+// Purge database (SUPERUSER only — also enforced server-side in the Apps Script doPost)
 function hapusSemuaDatabaseAset() {
+    if (!isSuperuser()) {
+        alert("Aksi ini hanya bisa dilakukan oleh Superuser.");
+        return;
+    }
     if (databaseAset.length === 0) {
         alert("Database memang sudah kosong.");
         return;
     }
     if (confirm("PERINGATAN TINGKAT TINGGI:\nApakah Anda yakin ingin menghapus SELURUH data aset di sistem ini? Tindakan ini tidak dapat dibatalkan!")) {
-        if (confirm("KONFIRMASI TERAKHIR:\nSemua data fisik inventaris akan hilang dari penyimpanan lokal. Lanjutkan proses pengosongan database?")) {
-            databaseAset = [];
+        if (confirm("KONFIRMASI TERAKHIR:\nSemua data akan dihapus permanen dari Google Sheet. Lanjutkan proses pengosongan database?")) {
+            if (!CONFIG.WEB_APP_URL) {
+                databaseAset = [];
+                resetFormAset();
+                perbaruiTampilanDanStatistik();
+                alert("Database lokal berhasil dikosongkan sepenuhnya.");
+                return;
+            }
 
-            resetFormAset();
-            perbaruiTampilanDanStatistik();
-            alert("Database lokal berhasil dikosongkan sepenuhnya.");
+            const formData = new URLSearchParams();
+            formData.append('action', 'deleteAll');
+            formData.append('token', CONFIG.API_TOKEN);
+            formData.append('superuserToken', CONFIG.SUPERUSER_TOKEN);
+
+            fetch(CONFIG.WEB_APP_URL, { method: 'POST', body: formData })
+                .then(response => {
+                    if (!response.ok) throw new Error("Gagal menghapus data di server");
+                    return response.json();
+                })
+                .then(hasil => {
+                    if (hasil && hasil.status === 'unauthorized') throw new Error("Token ditolak oleh server");
+                    databaseAset = [];
+                    resetFormAset();
+                    perbaruiTampilanDanStatistik();
+                    alert("Database berhasil dikosongkan sepenuhnya dari Google Sheet.");
+                })
+                .catch(err => {
+                    console.error('Gagal mengosongkan data di cloud:', err);
+                    alert('Gagal menghapus seluruh data di cloud. Database tidak dihapus dari Google Sheet. Coba lagi.');
+                });
         }
     }
 }
 
 // Render pie chart for asset categories
+const PIE_CHART_COLORS = ['#0284c7', '#0f172a', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#64748b', '#14b8a6', '#a855f7'];
+
+if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+    Chart.register(ChartDataLabels);
+}
+
+// Keep the year dropdown's options in sync with the loaded data without resetting the user's current selection
+function perbaruiOpsiTahunChart() {
+    const select = document.getElementById('filterTahunChart');
+    const nilaiSaatIni = select.value;
+
+    const tahunTerurut = Array.from(new Set(databaseAset.map(x => String(x.Tahun || "").trim()).filter(Boolean)))
+        .sort((a, b) => b.localeCompare(a));
+
+    select.innerHTML = '<option value="">Semua Tahun</option>' +
+        tahunTerurut.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+
+    if (tahunTerurut.includes(nilaiSaatIni)) {
+        select.value = nilaiSaatIni;
+    }
+}
+
 function renderKategoriPieChart() {
+    perbaruiOpsiTahunChart();
+
+    const tahunTerpilih = document.getElementById('filterTahunChart').value;
+    const dataTerfilter = tahunTerpilih
+        ? databaseAset.filter(x => String(x.Tahun || "").trim() === tahunTerpilih)
+        : databaseAset;
+
+    document.getElementById('pieChartSubtitle').textContent = tahunTerpilih
+        ? `Sebaran aset tahun ${tahunTerpilih} berdasarkan Jenis Barang`
+        : "Jumlah dan persentase sebaran aset berdasarkan Jenis Barang";
+
     const rekapJenis = {};
-    databaseAset.forEach(item => {
+    const rekapSumberDana = {}; // { jenis: { sumberDana: jumlah } }
+    dataTerfilter.forEach(item => {
         let jenis = item.Jenis_Barang ? item.Jenis_Barang.trim() : "Lain-lain";
         jenis = jenis.charAt(0).toUpperCase() + jenis.slice(1).toLowerCase();
         rekapJenis[jenis] = (rekapJenis[jenis] || 0) + 1;
+
+        const sumberDana = item.Sumber_Perolehan_Dana ? item.Sumber_Perolehan_Dana.trim() : "Tidak diketahui";
+        if (!rekapSumberDana[jenis]) rekapSumberDana[jenis] = {};
+        rekapSumberDana[jenis][sumberDana] = (rekapSumberDana[jenis][sumberDana] || 0) + 1;
     });
 
-    const labels = Object.keys(rekapJenis);
-    const dataValues = Object.values(rekapJenis);
+    // Show the biggest categories first so the detail list reads like a ranking
+    const entriesTerurut = Object.entries(rekapJenis).sort((a, b) => b[1] - a[1]);
+    const labels = entriesTerurut.map(x => x[0]);
+    const dataValues = entriesTerurut.map(x => x[1]);
+    const totalAset = dataValues.reduce((sum, v) => sum + v, 0);
+
+    const detailList = document.getElementById('pieChartDetailList');
 
     if (pieChartInstance !== null) {
         pieChartInstance.destroy();
+        pieChartInstance = null;
     }
 
-    if (labels.length === 0) return;
+    if (labels.length === 0) {
+        detailList.innerHTML = `<p class="pie-chart-empty">Belum ada data untuk ditampilkan${tahunTerpilih ? ` di tahun ${escapeHtml(tahunTerpilih)}` : ''}.</p>`;
+        return;
+    }
+
+    detailList.innerHTML = entriesTerurut.map(([jenis, jumlah], i) => {
+        const persen = ((jumlah / totalAset) * 100).toFixed(1);
+        const warna = PIE_CHART_COLORS[i % PIE_CHART_COLORS.length];
+
+        const sumberDanaText = Object.entries(rekapSumberDana[jenis] || {})
+            .sort((a, b) => b[1] - a[1])
+            .map(([sumber, jml]) => `${escapeHtml(sumber)} (${jml})`)
+            .join(', ');
+
+        return `
+            <div class="pie-chart-detail-item">
+                <div class="pie-chart-detail-main">
+                    <span class="label-group">
+                        <span class="color-dot" style="background-color: ${warna};"></span>
+                        ${escapeHtml(jenis)}
+                    </span>
+                    <span class="value-group">
+                        <span class="value-count">${jumlah}</span>
+                        <span class="value-percent">(${persen}%)</span>
+                    </span>
+                </div>
+                ${sumberDanaText ? `<div class="pie-chart-detail-sumber">Sumber Dana: ${sumberDanaText}</div>` : ''}
+            </div>
+        `;
+    }).join('');
 
     const ctx = document.getElementById('kategoriPieChart').getContext('2d');
     pieChartInstance = new Chart(ctx, {
@@ -300,9 +450,7 @@ function renderKategoriPieChart() {
             labels: labels,
             datasets: [{
                 data: dataValues,
-                backgroundColor: [
-                    '#0284c7', '#0f172a', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#64748b', '#14b8a6', '#a855f7'
-                ],
+                backgroundColor: labels.map((_, i) => PIE_CHART_COLORS[i % PIE_CHART_COLORS.length]),
                 borderWidth: 2,
                 borderColor: '#ffffff'
             }]
@@ -312,11 +460,23 @@ function renderKategoriPieChart() {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'right',
-                    labels: {
-                        boxWidth: 10,
-                        font: { size: 10, weight: 'bold', family: 'sans-serif' },
-                        color: '#475569'
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const jumlah = context.raw;
+                            const persen = ((jumlah / totalAset) * 100).toFixed(1);
+                            return `${context.label}: ${jumlah} unit (${persen}%)`;
+                        }
+                    }
+                },
+                datalabels: {
+                    color: '#ffffff',
+                    font: { weight: 'bold', size: 11, family: 'sans-serif' },
+                    formatter: (jumlah) => {
+                        const persen = (jumlah / totalAset) * 100;
+                        return persen >= 5 ? `${persen.toFixed(1)}%` : '';
                     }
                 }
             }
@@ -324,10 +484,103 @@ function renderKategoriPieChart() {
     });
 }
 
+// Toggle a checkbox filter dropdown open/closed, closing any other open ones
+function toggleMultiselectFilter(panelId) {
+    const panel = document.getElementById(panelId);
+    const sedangTerbuka = !panel.classList.contains('hidden');
+
+    document.querySelectorAll('.multiselect-panel').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.multiselect-trigger').forEach(t => t.classList.remove('is-open'));
+
+    if (!sedangTerbuka) {
+        panel.classList.remove('hidden');
+        panel.previousElementSibling.classList.add('is-open');
+    }
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.multiselect-filter')) {
+        document.querySelectorAll('.multiselect-panel').forEach(p => p.classList.add('hidden'));
+        document.querySelectorAll('.multiselect-trigger').forEach(t => t.classList.remove('is-open'));
+    }
+});
+
+// Delegated handler for the per-row action buttons (Barcode/Ubah/Hapus). Reading the asset ID
+// from `dataset.id` instead of interpolating it into an inline onclick="..." string means the ID
+// is passed as a plain JS value and can never be interpreted as executable code, no matter what
+// characters it contains.
+document.getElementById('tabelAsetBody').addEventListener('click', (e) => {
+    const tombol = e.target.closest('button[data-action]');
+    if (!tombol) return;
+    const idTarget = tombol.dataset.id;
+    if (tombol.dataset.action === 'cetak') cetakLabelBarcode(idTarget);
+    else if (tombol.dataset.action === 'ubah') muatDataKeFormUbah(idTarget);
+    else if (tombol.dataset.action === 'hapus') hapusAset(idTarget);
+});
+
+// Read the checked values inside a filter panel, optionally scoped to a data-filter-group (e.g. "tahun" vs "triwulan")
+function bacaNilaiTercentang(panelId, filterGroup) {
+    const selector = filterGroup
+        ? `input[type="checkbox"][data-filter-group="${filterGroup}"]:checked`
+        : 'input[type="checkbox"]:checked';
+    return Array.from(document.querySelectorAll(`#${panelId} ${selector}`)).map(cb => cb.value);
+}
+
+// Show a "(n)" count on a filter button and highlight it when it has active selections
+function perbaruiIndikatorFilter(triggerId, jumlahTerpilih) {
+    const trigger = document.getElementById(triggerId);
+    const labelSpan = trigger.querySelector('span');
+    if (!trigger.dataset.label) {
+        trigger.dataset.label = labelSpan.textContent;
+    }
+    labelSpan.textContent = jumlahTerpilih > 0 ? `${trigger.dataset.label} (${jumlahTerpilih})` : trigger.dataset.label;
+    trigger.classList.toggle('has-active', jumlahTerpilih > 0);
+}
+
+// Keep the "Tahun" checkbox list in sync with years actually present in the data, without losing current checks
+function perbaruiOpsiTahunFilter() {
+    const container = document.getElementById('filterTahunOptions');
+    const tahunTersedia = Array.from(new Set(databaseAset.map(x => String(x.Tahun || "").trim()).filter(Boolean)))
+        .sort((a, b) => b.localeCompare(a));
+    const tahunTercentang = new Set(bacaNilaiTercentang('filterTahunPengadaanPanel', 'tahun'));
+
+    if (tahunTersedia.length === 0) {
+        container.innerHTML = `<p class="multiselect-empty">Belum ada data tahun.</p>`;
+        return;
+    }
+
+    container.innerHTML = tahunTersedia.map(tahun => `
+        <label class="multiselect-option">
+            <input type="checkbox" data-filter-group="tahun" value="${escapeHtml(tahun)}" onchange="perbaruiTampilanDanStatistik()" ${tahunTercentang.has(tahun) ? 'checked' : ''}>
+            ${escapeHtml(tahun)}
+        </label>
+    `).join('');
+}
+
+// Clear the search box and every checkbox filter, then refresh the view
+function resetSemuaFilter() {
+    document.getElementById('filterPencarian').value = '';
+    document.querySelectorAll('.multiselect-panel input[type="checkbox"]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.multiselect-panel').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.multiselect-trigger').forEach(t => t.classList.remove('is-open'));
+    perbaruiTampilanDanStatistik();
+}
+
 // Re-render statistics, charts, and data tables
 function perbaruiTampilanDanStatistik() {
+    perbaruiOpsiTahunFilter();
+
     const kueri = document.getElementById('filterPencarian').value.toLowerCase().trim();
-    const fKon = document.getElementById('filterKondisi').value;
+    const statusTerpilih = bacaNilaiTercentang('filterStatusPanel');
+    const tahunTerpilih = bacaNilaiTercentang('filterTahunPengadaanPanel', 'tahun');
+    const triwulanTerpilih = bacaNilaiTercentang('filterTahunPengadaanPanel', 'triwulan');
+    const lokasiTerpilih = bacaNilaiTercentang('filterLokasiPanel');
+    const sumberDanaTerpilih = bacaNilaiTercentang('filterSumberDanaPanel');
+
+    perbaruiIndikatorFilter('filterStatusTrigger', statusTerpilih.length);
+    perbaruiIndikatorFilter('filterTahunPengadaanTrigger', tahunTerpilih.length + triwulanTerpilih.length);
+    perbaruiIndikatorFilter('filterLokasiTrigger', lokasiTerpilih.length);
+    perbaruiIndikatorFilter('filterSumberDanaTrigger', sumberDanaTerpilih.length);
 
     let filtered = databaseAset.filter(x => {
         const cocokKueri = !kueri ||
@@ -335,8 +588,13 @@ function perbaruiTampilanDanStatistik() {
             (x.Jenis_Barang && x.Jenis_Barang.toLowerCase().includes(kueri)) ||
             (x.Merk && x.Merk.toLowerCase().includes(kueri)) ||
             (x.Type_Barang && x.Type_Barang.toLowerCase().includes(kueri));
-        const cocokKon = !fKon || x.Kondisi === fKon;
-        return cocokKueri && cocokKon;
+        const cocokStatus = statusTerpilih.length === 0 || statusTerpilih.includes(x.Kondisi);
+        const cocokTahun = tahunTerpilih.length === 0 || tahunTerpilih.includes(String(x.Tahun || "").trim());
+        const cocokTriwulan = triwulanTerpilih.length === 0 || triwulanTerpilih.includes(x.Triwulan);
+        const cocokLokasi = lokasiTerpilih.length === 0 || lokasiTerpilih.includes(x.Lantai);
+        const cocokSumberDana = sumberDanaTerpilih.length === 0 ||
+            sumberDanaTerpilih.some(s => (x.Sumber_Perolehan_Dana || "").trim().toUpperCase() === s.toUpperCase());
+        return cocokKueri && cocokStatus && cocokTahun && cocokTriwulan && cocokLokasi && cocokSumberDana;
     });
 
     document.getElementById('statTotalAset').innerText = databaseAset.length;
@@ -364,7 +622,8 @@ function perbaruiTampilanDanStatistik() {
             statusBadge = `<span class="badge-status badge-status-rusak-berat">Rusak Berat</span>`;
         }
 
-        const namaDisplay = `${barang.Merk} ${barang.Type_Barang}`;
+        const namaDisplay = escapeHtml(`${barang.Merk} ${barang.Type_Barang}`);
+        const idAsetAman = escapeHtml(barang.ID_Aset);
 
         const tr = document.createElement('tr');
         tr.className = "table-row-hover";
@@ -372,28 +631,28 @@ function perbaruiTampilanDanStatistik() {
             <td>
                 <div>
                     <p class="asset-detail-name">${namaDisplay}</p>
-                    <p class="asset-detail-id">${barang.ID_Aset}</p>
+                    <p class="asset-detail-id">${idAsetAman}</p>
                 </div>
             </td>
             <td>
-                <span class="badge-category">${barang.Jenis_Barang}</span>
+                <span class="badge-category">${escapeHtml(barang.Jenis_Barang)}</span>
             </td>
             <td>
-                <span class="badge-category">${barang.Sumber_Perolehan_Dana}</span>
+                <span class="badge-category">${escapeHtml(barang.Sumber_Perolehan_Dana)}</span>
             </td>
             <td>
-                ${barang.Triwulan}<br>
-                <span style="font-size: 10px; color: var(--slate-400); font-weight: 500;">Tahun ${barang.Tahun}</span>
+                ${escapeHtml(barang.Triwulan)}<br>
+                <span style="font-size: 10px; color: var(--slate-400); font-weight: 500;">Tahun ${escapeHtml(barang.Tahun)}</span>
             </td>
             <td>
-                ${barang.Lantai}<br>
-                <span style="font-size: 10px; color: var(--slate-400); font-weight: 500;">${barang.Ruang}</span>
+                ${escapeHtml(barang.Lantai)}<br>
+                <span style="font-size: 10px; color: var(--slate-400); font-weight: 500;">${escapeHtml(barang.Ruang)}</span>
             </td>
             <td style="text-align: center;">${statusBadge}</td>
             <td class="cell-actions no-print">
-                <button onclick="cetakLabelBarcode('${barang.ID_Aset}')" class="btn-action btn-action-barcode">Barcode</button>
-                <button onclick="muatDataKeFormUbah('${barang.ID_Aset}')" class="btn-action btn-action-ubah">Ubah</button>
-                <button onclick="hapusAset('${barang.ID_Aset}')" class="btn-action btn-action-hapus">Hapus</button>
+                <button data-action="cetak" data-id="${idAsetAman}" class="btn-action btn-action-barcode">Barcode</button>
+                <button data-action="ubah" data-id="${idAsetAman}" class="btn-action btn-action-ubah">Ubah</button>
+                <button data-action="hapus" data-id="${idAsetAman}" class="btn-action btn-action-hapus">Hapus</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -437,6 +696,7 @@ function hapusAset(idTarget) {
     const formData = new URLSearchParams();
     formData.append('action', 'delete');
     formData.append('idAset', idTarget);
+    formData.append('token', CONFIG.API_TOKEN);
 
     fetch(CONFIG.WEB_APP_URL, { method: 'POST', body: formData })
         .then(response => {
