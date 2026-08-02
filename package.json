@@ -1,0 +1,9 @@
+{
+  "name": "simas-web-apps",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sistem Informasi Manajemen Aset Sekolah (SIMAS) SMP Negeri 263 Jakarta",
+  "scripts": {
+    "build": "node scripts/generate-config.js"
+  }
+}
