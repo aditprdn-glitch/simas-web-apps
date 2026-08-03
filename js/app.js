@@ -78,13 +78,30 @@ function isSuperuser() {
 function terapkanTampilanPeran() {
     const peran = sessionStorage.getItem('simas_role') || '';
     const userId = sessionStorage.getItem('simas_user_id') || '';
+    const superuser = isSuperuser();
 
     document.getElementById('userDisplayNip').textContent = `NIP: ${userId}`;
     document.getElementById('userDisplayRole').textContent = peran === 'SUPERUSER'
         ? 'Superuser'
         : 'Pengelola Barang Inventaris';
 
-    document.getElementById('btnHapusSemuaData').classList.toggle('hidden', !isSuperuser());
+    document.getElementById('btnHapusSemuaData').classList.toggle('hidden', !superuser);
+
+    // USER role: read-only access — no adding/editing assets, no bulk import
+    document.getElementById('fieldsetAset').disabled = !superuser;
+    document.getElementById('formAksesNote').classList.toggle('hidden', superuser);
+    document.getElementById('btnImporExcel').classList.toggle('hidden', !superuser);
+}
+
+// Blocks an action for anyone but SUPERUSER; shows an alert and returns true if blocked.
+// This mirrors the read-only restriction already enforced visually in the UI, as a
+// defense-in-depth check against the function being invoked directly (e.g. via console).
+function tolakJikaBukanSuperuser(pesan) {
+    if (!isSuperuser()) {
+        alert(pesan || "Aksi ini hanya bisa dilakukan oleh Superuser.");
+        return true;
+    }
+    return false;
 }
 
 // Show main panel
@@ -177,6 +194,8 @@ const FIELD_MAP = {
 // Save or edit asset record
 async function simpanData(e) {
     e.preventDefault();
+    if (tolakJikaBukanSuperuser()) return;
+
     const idVal = document.getElementById('idAset').value.trim();
 
     const dataPaket = {
@@ -261,6 +280,11 @@ const LANTAI_VALID = ["Lantai 1", "Lantai 2", "Lantai 3", "Lantai 4", "Area Luar
 
 // Import Excel File
 function bacaFileExcelMassal(event) {
+    if (tolakJikaBukanSuperuser()) {
+        event.target.value = "";
+        return;
+    }
+
     const file = event.target.files[0];
     if (!file) return;
 
@@ -368,10 +392,7 @@ function eksporDataKeExcel() {
 
 // Purge database (SUPERUSER only — also enforced server-side in the Apps Script doPost)
 function hapusSemuaDatabaseAset() {
-    if (!isSuperuser()) {
-        alert("Aksi ini hanya bisa dilakukan oleh Superuser.");
-        return;
-    }
+    if (tolakJikaBukanSuperuser()) return;
     if (databaseAset.length === 0) {
         alert("Database memang sudah kosong.");
         return;
@@ -698,6 +719,8 @@ function perbaruiTampilanDanStatistik() {
         return;
     }
 
+    const superuser = isSuperuser();
+
     filtered.forEach(barang => {
         let statusBadge = '';
         if (barang.Kondisi === 'Baik') {
@@ -737,8 +760,10 @@ function perbaruiTampilanDanStatistik() {
             <td style="text-align: center;">${statusBadge}</td>
             <td class="cell-actions no-print">
                 <button data-action="cetak" data-id="${idAsetAman}" class="btn-action btn-action-barcode">Barcode</button>
+                ${superuser ? `
                 <button data-action="ubah" data-id="${idAsetAman}" class="btn-action btn-action-ubah">Ubah</button>
                 <button data-action="hapus" data-id="${idAsetAman}" class="btn-action btn-action-hapus">Hapus</button>
+                ` : ''}
             </td>
         `;
         tbody.appendChild(tr);
@@ -747,6 +772,8 @@ function perbaruiTampilanDanStatistik() {
 
 // Populate modification form
 function muatDataKeFormUbah(idTarget) {
+    if (tolakJikaBukanSuperuser()) return;
+
     const barang = databaseAset.find(x => x.ID_Aset === idTarget);
     if (barang) {
         document.getElementById('formTitle').innerText = `Ubah Aset: ${barang.ID_Aset}`;
@@ -770,6 +797,7 @@ function muatDataKeFormUbah(idTarget) {
 
 // Delete asset record
 function hapusAset(idTarget) {
+    if (tolakJikaBukanSuperuser()) return;
     if (!confirm(`Hapus rekor aset ${idTarget}?`)) return;
 
     if (!CONFIG.WEB_APP_URL) {

@@ -164,6 +164,12 @@ body {
     color: var(--slate-300);
 }
 
+.form-input:disabled, .form-select:disabled {
+    background-color: var(--slate-100);
+    color: var(--slate-400);
+    cursor: not-allowed;
+}
+
 .form-input:focus, .form-select:focus {
     border-color: var(--sky-600);
     box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
@@ -523,6 +529,12 @@ main.dashboard-main {
 
 .btn-submit-aset:hover {
     background-color: var(--slate-800);
+}
+
+.btn-submit-aset:disabled {
+    background-color: var(--slate-250);
+    color: var(--slate-400);
+    cursor: not-allowed;
 }
 
 /* Mass Actions Panel styling */

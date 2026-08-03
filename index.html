@@ -115,8 +115,10 @@
                         <h3 class="panel-title" id="formTitle">Tambah Aset Baru</h3>
                         <button onclick="resetFormAset()" class="btn-batal-edit hidden" id="btnBatalEdit">Batal</button>
                     </div>
+                    <p class="panel-subtitle hidden" id="formAksesNote">Hanya Superuser yang dapat menambah atau mengubah data aset.</p>
 
                     <form id="formAset" onsubmit="simpanData(event)" style="display: flex; flex-direction: column; gap: 1rem;">
+                        <fieldset id="fieldsetAset" style="display: contents;">
                         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                             <div class="form-group">
                                 <label for="idAset" class="form-label">ID Aset (Kode Registrasi)</label>
@@ -240,6 +242,7 @@
                         <button type="submit" class="btn-submit-aset">
                             Simpan Rekor Aset
                         </button>
+                        </fieldset>
                     </form>
                 </div>
 
@@ -257,7 +260,7 @@
                                 <button onclick="unduhTemplateExcelOtomatis()" class="btn-outline">
                                     Template
                                 </button>
-                                <label class="btn-outline">
+                                <label class="btn-outline" id="btnImporExcel">
                                     Impor Excel
                                     <input type="file" id="excelFileInput" accept=".xlsx, .xls" onchange="bacaFileExcelMassal(event)" class="hidden">
                                 </label>
