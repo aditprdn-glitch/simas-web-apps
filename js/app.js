@@ -1,6 +1,11 @@
 // SMPN 263 Jakarta - SIMAS Asset Management Script
 let databaseAset = [];
 let pieChartInstance = null;
+let totalAsetTerkini = 0; // read by the chart's tooltip/datalabels callbacks, kept fresh on every render
+
+function arraysEqual(a, b) {
+    return a.length === b.length && a.every((val, i) => val === b[i]);
+}
 
 // Escape a value before interpolating it into innerHTML or an HTML attribute,
 // so asset data (which can come from Excel import or the shared Sheet) can't break out
@@ -12,6 +17,12 @@ function escapeHtml(nilai) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
+}
+
+// Distinct years actually present in the loaded data, newest first
+function daftarTahunUnik() {
+    return Array.from(new Set(databaseAset.map(x => String(x.Tahun || "").trim()).filter(Boolean)))
+        .sort((a, b) => b.localeCompare(a));
 }
 
 // Initialize app
@@ -87,8 +98,9 @@ function tampilkanDashboard() {
 
 // Show a placeholder message spanning the whole table (loading/error/empty states)
 function tampilkanPesanTabel(pesan) {
+    const jumlahKolom = document.querySelectorAll('#tabelAset thead th').length;
     const tbody = document.getElementById('tabelAsetBody');
-    tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-6 text-center text-slate-400 font-bold" style="font-weight: 700; color: var(--slate-400);">${escapeHtml(pesan)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${jumlahKolom}" class="px-6 py-6 text-center text-slate-400 font-bold" style="font-weight: 700; color: var(--slate-400);">${escapeHtml(pesan)}</td></tr>`;
 }
 
 // Load data from Google Sheets Cloud
@@ -154,8 +166,16 @@ function pemicuBarcodeFormDinamis(val) {
     }
 }
 
+// Maps internal field names to the query-parameter names the Apps Script doPost expects
+const FIELD_MAP = {
+    ID_Aset: 'idAset', Jenis_Barang: 'jenisBarang', Merk: 'merkBarang',
+    Type_Barang: 'typeBarang', Sumber_Perolehan_Dana: 'sumberDana',
+    Triwulan: 'pembelianTriwulan', Tahun: 'pembelianTahun',
+    Lantai: 'lokasiLantai', Ruang: 'lokasiRuang', Kondisi: 'kondisi'
+};
+
 // Save or edit asset record
-function simpanData(e) {
+async function simpanData(e) {
     e.preventDefault();
     const idVal = document.getElementById('idAset').value.trim();
 
@@ -186,38 +206,37 @@ function simpanData(e) {
         databaseAset.push(dataPaket);
     }
 
-    if (CONFIG.WEB_APP_URL) {
-        const formData = new URLSearchParams();
-        Object.keys(dataPaket).forEach(key => {
-            const mappedKey = 
-                key === 'ID_Aset' ? 'idAset' : 
-                key === 'Jenis_Barang' ? 'jenisBarang' : 
-                key === 'Merk' ? 'merkBarang' : 
-                key === 'Type_Barang' ? 'typeBarang' : 
-                key === 'Sumber_Perolehan_Dana' ? 'sumberDana' :
-                key === 'Triwulan' ? 'pembelianTriwulan' : 
-                key === 'Tahun' ? 'pembelianTahun' : 
-                key === 'Lantai' ? 'lokasiLantai' : 
-                key === 'Ruang' ? 'lokasiRuang' : 
-                key === 'Kondisi' ? 'kondisi' : '';
-            if (mappedKey) {
-                formData.append(mappedKey, dataPaket[key]);
-            }
-        });
-        formData.append('token', CONFIG.API_TOKEN);
+    if (!CONFIG.WEB_APP_URL) {
+        resetFormAset();
+        perbaruiTampilanDanStatistik();
+        alert("Data aset berhasil disimpan (mode lokal, tanpa cloud).");
+        return;
+    }
 
-        fetch(CONFIG.WEB_APP_URL, {
+    const formData = new URLSearchParams();
+    Object.keys(dataPaket).forEach(key => {
+        if (FIELD_MAP[key]) formData.append(FIELD_MAP[key], dataPaket[key]);
+    });
+    formData.append('token', CONFIG.API_TOKEN);
+
+    try {
+        const response = await fetch(CONFIG.WEB_APP_URL, {
             method: 'POST',
             body: formData,
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        })
-        .then(() => console.log('Sukses sinkronisasi cloud.'))
-        .catch(err => console.error('Cloud synchronization error:', err));
-    }
+        });
+        if (!response.ok) throw new Error("Gagal menyimpan data di server");
+        const hasil = await response.json();
+        if (hasil && hasil.status === 'unauthorized') throw new Error("Token ditolak oleh server");
 
-    resetFormAset();
-    perbaruiTampilanDanStatistik();
-    alert("Data aset berhasil disimpan dan disinkronisasi ke cloud!");
+        resetFormAset();
+        perbaruiTampilanDanStatistik();
+        alert("Data aset berhasil disimpan dan disinkronisasi ke cloud!");
+    } catch (err) {
+        console.error('Gagal menyimpan data di cloud:', err);
+        perbaruiTampilanDanStatistik();
+        alert('Data tersimpan secara lokal, tetapi GAGAL disinkronisasi ke cloud. Periksa koneksi/konfigurasi lalu coba simpan ulang.');
+    }
 }
 
 // Download Excel Template for Mass Import
@@ -234,19 +253,30 @@ function unduhTemplateExcelOtomatis() {
     XLSX.writeFile(workbook, "Template_SIMAS_263.xlsx");
 }
 
+// Fixed enums also used by the manual form's dropdowns; imported rows are checked against
+// these instead of being accepted as-is, so bad Excel data can't silently become unfilterable.
+const KONDISI_VALID = ["Baik", "Rusak Ringan", "Rusak Berat"];
+const TRIWULAN_VALID = ["Triwulan 1", "Triwulan 2", "Triwulan 3", "Triwulan 4"];
+const LANTAI_VALID = ["Lantai 1", "Lantai 2", "Lantai 3", "Lantai 4", "Area Luar / Lapangan"];
+
 // Import Excel File
 function bacaFileExcelMassal(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function (e) {
+    reader.onload = async function (e) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const matriksJson = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
         let entriSukses = 0;
+        const barisDilewati = [];
+        const gagalSinkron = [];
+
+        // Sequential (not fire-and-forget) so each row's cloud sync result is known before
+        // moving on, and a large import can't fire dozens of concurrent requests at once.
         for (let i = 1; i < matriksJson.length; i++) {
             const baris = matriksJson[i];
             if (!baris[0] || !baris[1]) continue;
@@ -267,6 +297,19 @@ function bacaFileExcelMassal(event) {
                 Kondisi: baris[9] ? String(baris[9]).trim() : "Baik"
             };
 
+            if (!KONDISI_VALID.includes(dataPaket.Kondisi)) {
+                barisDilewati.push(`baris ${i + 1} (${idAset}): Kondisi "${dataPaket.Kondisi}" tidak valid`);
+                continue;
+            }
+            if (!TRIWULAN_VALID.includes(dataPaket.Triwulan)) {
+                barisDilewati.push(`baris ${i + 1} (${idAset}): Triwulan "${dataPaket.Triwulan}" tidak valid`);
+                continue;
+            }
+            if (!LANTAI_VALID.includes(dataPaket.Lantai)) {
+                barisDilewati.push(`baris ${i + 1} (${idAset}): Lantai "${dataPaket.Lantai}" tidak valid`);
+                continue;
+            }
+
             databaseAset.push(dataPaket);
             entriSukses++;
 
@@ -283,12 +326,28 @@ function bacaFileExcelMassal(event) {
                 formData.append('lokasiRuang', dataPaket.Ruang);
                 formData.append('kondisi', dataPaket.Kondisi);
                 formData.append('token', CONFIG.API_TOKEN);
-                fetch(CONFIG.WEB_APP_URL, { method: 'POST', body: formData });
+
+                try {
+                    const response = await fetch(CONFIG.WEB_APP_URL, { method: 'POST', body: formData });
+                    if (!response.ok) throw new Error();
+                    const hasil = await response.json();
+                    if (hasil && hasil.status === 'unauthorized') throw new Error();
+                } catch {
+                    gagalSinkron.push(idAset);
+                }
             }
         }
 
         perbaruiTampilanDanStatistik();
-        alert(`Berhasil mengimpor ${entriSukses} rekor aset baru dari file Excel.`);
+
+        let pesan = `Berhasil mengimpor ${entriSukses} rekor aset baru dari file Excel.`;
+        if (gagalSinkron.length > 0) {
+            pesan += `\n\nGAGAL disinkronisasi ke cloud (tersimpan lokal saja, coba "Sinkronisasi" ulang nanti): ${gagalSinkron.join(', ')}`;
+        }
+        if (barisDilewati.length > 0) {
+            pesan += `\n\nDilewati karena data tidak valid:\n${barisDilewati.join('\n')}`;
+        }
+        alert(pesan);
         document.getElementById('excelFileInput').value = "";
     };
     reader.readAsArrayBuffer(file);
@@ -364,8 +423,7 @@ function perbaruiOpsiTahunChart() {
     const select = document.getElementById('filterTahunChart');
     const nilaiSaatIni = select.value;
 
-    const tahunTerurut = Array.from(new Set(databaseAset.map(x => String(x.Tahun || "").trim()).filter(Boolean)))
-        .sort((a, b) => b.localeCompare(a));
+    const tahunTerurut = daftarTahunUnik();
 
     select.innerHTML = '<option value="">Semua Tahun</option>' +
         tahunTerurut.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
@@ -404,15 +462,15 @@ function renderKategoriPieChart() {
     const labels = entriesTerurut.map(x => x[0]);
     const dataValues = entriesTerurut.map(x => x[1]);
     const totalAset = dataValues.reduce((sum, v) => sum + v, 0);
+    totalAsetTerkini = totalAset;
 
     const detailList = document.getElementById('pieChartDetailList');
 
-    if (pieChartInstance !== null) {
-        pieChartInstance.destroy();
-        pieChartInstance = null;
-    }
-
     if (labels.length === 0) {
+        if (pieChartInstance !== null) {
+            pieChartInstance.destroy();
+            pieChartInstance = null;
+        }
         detailList.innerHTML = `<p class="pie-chart-empty">Belum ada data untuk ditampilkan${tahunTerpilih ? ` di tahun ${escapeHtml(tahunTerpilih)}` : ''}.</p>`;
         return;
     }
@@ -443,6 +501,20 @@ function renderKategoriPieChart() {
         `;
     }).join('');
 
+    // If the set of categories hasn't changed, update the existing chart's values in place
+    // instead of destroying and recreating the whole Chart.js instance on every filter/search change.
+    if (pieChartInstance !== null && arraysEqual(pieChartInstance.data.labels, labels)) {
+        pieChartInstance.data.datasets[0].data = dataValues;
+        pieChartInstance.data.datasets[0].backgroundColor = labels.map((_, i) => PIE_CHART_COLORS[i % PIE_CHART_COLORS.length]);
+        pieChartInstance.update();
+        return;
+    }
+
+    if (pieChartInstance !== null) {
+        pieChartInstance.destroy();
+        pieChartInstance = null;
+    }
+
     const ctx = document.getElementById('kategoriPieChart').getContext('2d');
     pieChartInstance = new Chart(ctx, {
         type: 'pie',
@@ -466,7 +538,7 @@ function renderKategoriPieChart() {
                     callbacks: {
                         label: (context) => {
                             const jumlah = context.raw;
-                            const persen = ((jumlah / totalAset) * 100).toFixed(1);
+                            const persen = ((jumlah / totalAsetTerkini) * 100).toFixed(1);
                             return `${context.label}: ${jumlah} unit (${persen}%)`;
                         }
                     }
@@ -475,7 +547,7 @@ function renderKategoriPieChart() {
                     color: '#ffffff',
                     font: { weight: 'bold', size: 11, family: 'sans-serif' },
                     formatter: (jumlah) => {
-                        const persen = (jumlah / totalAset) * 100;
+                        const persen = (jumlah / totalAsetTerkini) * 100;
                         return persen >= 5 ? `${persen.toFixed(1)}%` : '';
                     }
                 }
@@ -518,6 +590,14 @@ document.getElementById('tabelAsetBody').addEventListener('click', (e) => {
     else if (tombol.dataset.action === 'hapus') hapusAset(idTarget);
 });
 
+// Debounce the search box so typing doesn't re-run the full filter/chart/table pipeline
+// on every keystroke — only after the user pauses for 200ms.
+let timerPencarian;
+document.getElementById('filterPencarian').addEventListener('input', () => {
+    clearTimeout(timerPencarian);
+    timerPencarian = setTimeout(perbaruiTampilanDanStatistik, 200);
+});
+
 // Read the checked values inside a filter panel, optionally scoped to a data-filter-group (e.g. "tahun" vs "triwulan")
 function bacaNilaiTercentang(panelId, filterGroup) {
     const selector = filterGroup
@@ -540,8 +620,7 @@ function perbaruiIndikatorFilter(triggerId, jumlahTerpilih) {
 // Keep the "Tahun" checkbox list in sync with years actually present in the data, without losing current checks
 function perbaruiOpsiTahunFilter() {
     const container = document.getElementById('filterTahunOptions');
-    const tahunTersedia = Array.from(new Set(databaseAset.map(x => String(x.Tahun || "").trim()).filter(Boolean)))
-        .sort((a, b) => b.localeCompare(a));
+    const tahunTersedia = daftarTahunUnik();
     const tahunTercentang = new Set(bacaNilaiTercentang('filterTahunPengadaanPanel', 'tahun'));
 
     if (tahunTersedia.length === 0) {
@@ -597,10 +676,17 @@ function perbaruiTampilanDanStatistik() {
         return cocokKueri && cocokStatus && cocokTahun && cocokTriwulan && cocokLokasi && cocokSumberDana;
     });
 
+    const jumlahKondisi = databaseAset.reduce((acc, x) => {
+        if (x.Kondisi === 'Baik') acc.baik++;
+        else if (x.Kondisi === 'Rusak Ringan') acc.ringan++;
+        else if (x.Kondisi === 'Rusak Berat') acc.berat++;
+        return acc;
+    }, { baik: 0, ringan: 0, berat: 0 });
+
     document.getElementById('statTotalAset').innerText = databaseAset.length;
-    document.getElementById('statKondisiBaik').innerText = databaseAset.filter(x => x.Kondisi === 'Baik').length;
-    document.getElementById('statKondisiRusakRingan').innerText = databaseAset.filter(x => x.Kondisi === 'Rusak Ringan').length;
-    document.getElementById('statKondisiRusakBerat').innerText = databaseAset.filter(x => x.Kondisi === 'Rusak Berat').length;
+    document.getElementById('statKondisiBaik').innerText = jumlahKondisi.baik;
+    document.getElementById('statKondisiRusakRingan').innerText = jumlahKondisi.ringan;
+    document.getElementById('statKondisiRusakBerat').innerText = jumlahKondisi.berat;
 
     renderKategoriPieChart();
 
