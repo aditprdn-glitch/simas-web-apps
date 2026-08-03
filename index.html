@@ -106,11 +106,8 @@
                 </div>
             </section>
 
-            <!-- MAIN GRID CONTENT -->
-            <section class="content-grid no-print">
-
-                <!-- Left Column: Add Asset Form -->
-                <div class="card-panel">
+            <!-- ADD ASSET FORM (full width) -->
+            <section class="card-panel no-print">
                     <div class="panel-header">
                         <h3 class="panel-title" id="formTitle">Tambah Aset Baru</h3>
                         <button onclick="resetFormAset()" class="btn-batal-edit hidden" id="btnBatalEdit">Batal</button>
@@ -244,127 +241,119 @@
                         </button>
                         </fieldset>
                     </form>
+            </section>
+
+            <!-- ACTIONS PANEL (full width) -->
+            <section class="card-panel no-print">
+                    <div>
+                        <h3 class="panel-title">Aksi Massal & Integrasi</h3>
+                        <p class="panel-subtitle">Impor data dari Excel lama atau cadangkan database sistem</p>
+                    </div>
+                    <div class="action-buttons-group">
+                        <button onclick="unduhTemplateExcelOtomatis()" class="btn-outline">
+                            Template
+                        </button>
+                        <label class="btn-outline" id="btnImporExcel">
+                            Impor Excel
+                            <input type="file" id="excelFileInput" accept=".xlsx, .xls" onchange="bacaFileExcelMassal(event)" class="hidden">
+                        </label>
+                        <button onclick="eksporDataKeExcel()" class="btn-sky">
+                            Ekspor Database (.xlsx)
+                        </button>
+                        <button onclick="hapusSemuaDatabaseAset()" id="btnHapusSemuaData" class="btn-danger-light">
+                            Hapus Semua Data
+                        </button>
+                    </div>
+            </section>
+
+            <!-- PROPORSI JENIS BARANG (full width) -->
+            <section class="card-panel pie-chart-section no-print">
+                <div class="pie-chart-header">
+                    <div>
+                        <h3 class="panel-title">Proporsi Jenis Barang</h3>
+                        <p class="panel-subtitle" id="pieChartSubtitle">Jumlah dan persentase sebaran aset berdasarkan Jenis Barang</p>
+                    </div>
+                    <select id="filterTahunChart" onchange="renderKategoriPieChart()" class="form-select pie-chart-year-filter">
+                        <option value="">Semua Tahun</option>
+                    </select>
                 </div>
+                <div class="pie-chart-detail-layout">
+                    <div class="pie-chart-wrapper">
+                        <canvas id="kategoriPieChart"></canvas>
+                    </div>
+                    <div id="pieChartDetailList" class="pie-chart-detail-list"></div>
+                </div>
+            </section>
 
-                <!-- Right Column: Actions, Pie Chart, Filters -->
-                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <!-- PENCARIAN & PENYARINGAN DATA (full width) -->
+            <section class="card-panel search-filter-section no-print">
+                <div>
+                    <h3 class="panel-title">Pencarian & Penyaringan Data</h3>
+                </div>
+                <input type="text" id="filterPencarian"
+                    placeholder="Cari ID, Jenis, Merk, atau Type..." class="form-input">
 
-                    <!-- Actions Panel -->
-                    <div class="card-panel">
-                        <div>
-                            <h3 class="panel-title">Aksi Massal & Integrasi</h3>
-                            <p class="panel-subtitle">Impor data dari Excel lama atau cadangkan database sistem</p>
-                        </div>
-                        <div class="action-buttons-group">
-                            <div class="btn-grid">
-                                <button onclick="unduhTemplateExcelOtomatis()" class="btn-outline">
-                                    Template
-                                </button>
-                                <label class="btn-outline" id="btnImporExcel">
-                                    Impor Excel
-                                    <input type="file" id="excelFileInput" accept=".xlsx, .xls" onchange="bacaFileExcelMassal(event)" class="hidden">
-                                </label>
-                            </div>
-                            <button onclick="eksporDataKeExcel()" class="btn-sky">
-                                Ekspor Database (.xlsx)
-                            </button>
-                            <button onclick="hapusSemuaDatabaseAset()" id="btnHapusSemuaData" class="btn-danger-light">
-                                Hapus Semua Data
-                            </button>
+                <div class="filter-checkbox-group">
+                    <!-- Status -->
+                    <div class="multiselect-filter">
+                        <button type="button" class="multiselect-trigger" id="filterStatusTrigger" onclick="toggleMultiselectFilter('filterStatusPanel')">
+                            <span>Status</span>
+                            <svg class="multiselect-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" /></svg>
+                        </button>
+                        <div class="multiselect-panel hidden" id="filterStatusPanel">
+                            <label class="multiselect-option"><input type="checkbox" value="Baik" onchange="perbaruiTampilanDanStatistik()"> Baik</label>
+                            <label class="multiselect-option"><input type="checkbox" value="Rusak Ringan" onchange="perbaruiTampilanDanStatistik()"> Rusak Ringan</label>
+                            <label class="multiselect-option"><input type="checkbox" value="Rusak Berat" onchange="perbaruiTampilanDanStatistik()"> Rusak Berat</label>
                         </div>
                     </div>
 
-                    <!-- Pie Chart Panel -->
-                    <div class="card-panel">
-                        <div class="pie-chart-header">
-                            <div>
-                                <h3 class="panel-title">Proporsi Jenis Barang</h3>
-                                <p class="panel-subtitle" id="pieChartSubtitle">Jumlah dan persentase sebaran aset berdasarkan Jenis Barang</p>
+                    <!-- Tahun Pengadaan (Tahun + Triwulan) -->
+                    <div class="multiselect-filter">
+                        <button type="button" class="multiselect-trigger" id="filterTahunPengadaanTrigger" onclick="toggleMultiselectFilter('filterTahunPengadaanPanel')">
+                            <span>Tahun Pengadaan</span>
+                            <svg class="multiselect-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" /></svg>
+                        </button>
+                        <div class="multiselect-panel hidden" id="filterTahunPengadaanPanel">
+                            <p class="multiselect-subheading">Tahun</p>
+                            <div id="filterTahunOptions">
+                                <p class="multiselect-empty">Belum ada data tahun.</p>
                             </div>
-                            <select id="filterTahunChart" onchange="renderKategoriPieChart()" class="form-select pie-chart-year-filter">
-                                <option value="">Semua Tahun</option>
-                            </select>
-                        </div>
-                        <div class="pie-chart-detail-layout">
-                            <div class="pie-chart-wrapper">
-                                <canvas id="kategoriPieChart"></canvas>
-                            </div>
-                            <div id="pieChartDetailList" class="pie-chart-detail-list"></div>
-                        </div>
-                    </div>
-
-                    <!-- Search & Filter Panel -->
-                    <div class="card-panel">
-                        <div>
-                            <h3 class="panel-title">Pencarian & Penyaringan Data</h3>
-                        </div>
-                        <input type="text" id="filterPencarian"
-                            placeholder="Cari ID, Jenis, Merk, atau Type..." class="form-input">
-
-                        <div class="filter-checkbox-group">
-                            <!-- Status -->
-                            <div class="multiselect-filter">
-                                <button type="button" class="multiselect-trigger" id="filterStatusTrigger" onclick="toggleMultiselectFilter('filterStatusPanel')">
-                                    <span>Status</span>
-                                    <svg class="multiselect-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" /></svg>
-                                </button>
-                                <div class="multiselect-panel hidden" id="filterStatusPanel">
-                                    <label class="multiselect-option"><input type="checkbox" value="Baik" onchange="perbaruiTampilanDanStatistik()"> Baik</label>
-                                    <label class="multiselect-option"><input type="checkbox" value="Rusak Ringan" onchange="perbaruiTampilanDanStatistik()"> Rusak Ringan</label>
-                                    <label class="multiselect-option"><input type="checkbox" value="Rusak Berat" onchange="perbaruiTampilanDanStatistik()"> Rusak Berat</label>
-                                </div>
-                            </div>
-
-                            <!-- Tahun Pengadaan (Tahun + Triwulan) -->
-                            <div class="multiselect-filter">
-                                <button type="button" class="multiselect-trigger" id="filterTahunPengadaanTrigger" onclick="toggleMultiselectFilter('filterTahunPengadaanPanel')">
-                                    <span>Tahun Pengadaan</span>
-                                    <svg class="multiselect-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" /></svg>
-                                </button>
-                                <div class="multiselect-panel hidden" id="filterTahunPengadaanPanel">
-                                    <p class="multiselect-subheading">Tahun</p>
-                                    <div id="filterTahunOptions">
-                                        <p class="multiselect-empty">Belum ada data tahun.</p>
-                                    </div>
-                                    <p class="multiselect-subheading">Triwulan</p>
-                                    <label class="multiselect-option"><input type="checkbox" data-filter-group="triwulan" value="Triwulan 1" onchange="perbaruiTampilanDanStatistik()"> Triwulan 1</label>
-                                    <label class="multiselect-option"><input type="checkbox" data-filter-group="triwulan" value="Triwulan 2" onchange="perbaruiTampilanDanStatistik()"> Triwulan 2</label>
-                                    <label class="multiselect-option"><input type="checkbox" data-filter-group="triwulan" value="Triwulan 3" onchange="perbaruiTampilanDanStatistik()"> Triwulan 3</label>
-                                    <label class="multiselect-option"><input type="checkbox" data-filter-group="triwulan" value="Triwulan 4" onchange="perbaruiTampilanDanStatistik()"> Triwulan 4</label>
-                                </div>
-                            </div>
-
-                            <!-- Lokasi Ruang -->
-                            <div class="multiselect-filter">
-                                <button type="button" class="multiselect-trigger" id="filterLokasiTrigger" onclick="toggleMultiselectFilter('filterLokasiPanel')">
-                                    <span>Lokasi Ruang</span>
-                                    <svg class="multiselect-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" /></svg>
-                                </button>
-                                <div class="multiselect-panel hidden" id="filterLokasiPanel">
-                                    <label class="multiselect-option"><input type="checkbox" value="Lantai 1" onchange="perbaruiTampilanDanStatistik()"> Lantai 1</label>
-                                    <label class="multiselect-option"><input type="checkbox" value="Lantai 2" onchange="perbaruiTampilanDanStatistik()"> Lantai 2</label>
-                                    <label class="multiselect-option"><input type="checkbox" value="Lantai 3" onchange="perbaruiTampilanDanStatistik()"> Lantai 3</label>
-                                    <label class="multiselect-option"><input type="checkbox" value="Lantai 4" onchange="perbaruiTampilanDanStatistik()"> Lantai 4</label>
-                                </div>
-                            </div>
-
-                            <!-- Sumber Dana -->
-                            <div class="multiselect-filter">
-                                <button type="button" class="multiselect-trigger" id="filterSumberDanaTrigger" onclick="toggleMultiselectFilter('filterSumberDanaPanel')">
-                                    <span>Sumber Dana</span>
-                                    <svg class="multiselect-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" /></svg>
-                                </button>
-                                <div class="multiselect-panel hidden" id="filterSumberDanaPanel">
-                                    <label class="multiselect-option"><input type="checkbox" value="BOS" onchange="perbaruiTampilanDanStatistik()"> BOS</label>
-                                    <label class="multiselect-option"><input type="checkbox" value="BOP" onchange="perbaruiTampilanDanStatistik()"> BOP</label>
-                                    <label class="multiselect-option"><input type="checkbox" value="HIBAH" onchange="perbaruiTampilanDanStatistik()"> HIBAH</label>
-                                </div>
-                            </div>
-
-                            <button type="button" class="filter-reset-btn" onclick="resetSemuaFilter()">Reset Filter</button>
+                            <p class="multiselect-subheading">Triwulan</p>
+                            <label class="multiselect-option"><input type="checkbox" data-filter-group="triwulan" value="Triwulan 1" onchange="perbaruiTampilanDanStatistik()"> Triwulan 1</label>
+                            <label class="multiselect-option"><input type="checkbox" data-filter-group="triwulan" value="Triwulan 2" onchange="perbaruiTampilanDanStatistik()"> Triwulan 2</label>
+                            <label class="multiselect-option"><input type="checkbox" data-filter-group="triwulan" value="Triwulan 3" onchange="perbaruiTampilanDanStatistik()"> Triwulan 3</label>
+                            <label class="multiselect-option"><input type="checkbox" data-filter-group="triwulan" value="Triwulan 4" onchange="perbaruiTampilanDanStatistik()"> Triwulan 4</label>
                         </div>
                     </div>
 
+                    <!-- Lokasi Ruang -->
+                    <div class="multiselect-filter">
+                        <button type="button" class="multiselect-trigger" id="filterLokasiTrigger" onclick="toggleMultiselectFilter('filterLokasiPanel')">
+                            <span>Lokasi Ruang</span>
+                            <svg class="multiselect-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" /></svg>
+                        </button>
+                        <div class="multiselect-panel hidden" id="filterLokasiPanel">
+                            <label class="multiselect-option"><input type="checkbox" value="Lantai 1" onchange="perbaruiTampilanDanStatistik()"> Lantai 1</label>
+                            <label class="multiselect-option"><input type="checkbox" value="Lantai 2" onchange="perbaruiTampilanDanStatistik()"> Lantai 2</label>
+                            <label class="multiselect-option"><input type="checkbox" value="Lantai 3" onchange="perbaruiTampilanDanStatistik()"> Lantai 3</label>
+                            <label class="multiselect-option"><input type="checkbox" value="Lantai 4" onchange="perbaruiTampilanDanStatistik()"> Lantai 4</label>
+                        </div>
+                    </div>
+
+                    <!-- Sumber Dana -->
+                    <div class="multiselect-filter">
+                        <button type="button" class="multiselect-trigger" id="filterSumberDanaTrigger" onclick="toggleMultiselectFilter('filterSumberDanaPanel')">
+                            <span>Sumber Dana</span>
+                            <svg class="multiselect-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd" /></svg>
+                        </button>
+                        <div class="multiselect-panel hidden" id="filterSumberDanaPanel">
+                            <label class="multiselect-option"><input type="checkbox" value="BOS" onchange="perbaruiTampilanDanStatistik()"> BOS</label>
+                            <label class="multiselect-option"><input type="checkbox" value="BOP" onchange="perbaruiTampilanDanStatistik()"> BOP</label>
+                            <label class="multiselect-option"><input type="checkbox" value="HIBAH" onchange="perbaruiTampilanDanStatistik()"> HIBAH</label>
+                        </div>
+                    </div>
+
+                    <button type="button" class="filter-reset-btn" onclick="resetSemuaFilter()">Reset Filter</button>
                 </div>
             </section>
 

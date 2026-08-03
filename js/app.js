@@ -506,12 +506,9 @@ function renderKategoriPieChart() {
             .join(', ');
 
         return `
-            <div class="pie-chart-detail-item">
+            <div class="pie-chart-detail-item" style="--item-color: ${warna};">
                 <div class="pie-chart-detail-main">
-                    <span class="label-group">
-                        <span class="color-dot" style="background-color: ${warna};"></span>
-                        ${escapeHtml(jenis)}
-                    </span>
+                    <span class="label-group">${escapeHtml(jenis)}</span>
                     <span class="value-group">
                         <span class="value-count">${jumlah}</span>
                         <span class="value-percent">(${persen}%)</span>
